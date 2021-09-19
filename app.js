@@ -1,10 +1,15 @@
 const express = require("express")
 const cors = require('cors')
+const yup = require('yup');
+const { Op } = require('sequelize')
+
 const bcrypt = require('bcryptjs')
 const jwt = require('jsonwebtoken')
 require('dotenv').config()
+
 const {eAdmin} = require('./middlewares/auth')
 const Usuario = require('./models/Usuario')
+
 const app = express()
 
 app.use(express.json())
@@ -22,7 +27,7 @@ app.use(cors())
 app.get("/users/:page", eAdmin, async (req, res) => {
 
    const {page = 1} = req.params;
-    const limit = 2;
+    const limit = 20;
     let lastPage = 1;
 
     const countUser = await Usuario.count();
@@ -39,7 +44,7 @@ app.get("/users/:page", eAdmin, async (req, res) => {
 
     await Usuario.findAll({
         attributes: ['id', 'name', 'email', 'password'],
-        order: [['id','ASC']],
+        order: [['id','DESC']],
         offset: Number((page * limit) - limit), 
         limit: limit
     })
@@ -79,6 +84,49 @@ app.get("/user/:id", eAdmin, async (req, res) => {
 
 app.post("/user", eAdmin, async (req, res) => {
     let dados = req.body
+    
+    const schema = yup.object().shape({
+        
+        password: yup.string("Erro: Necessário preencher o campo senha!")
+        .required("Erro: Necessário preencher o campo senha!")
+        .min(6, "Erro: A senha deve ter no mínimo 6 caracteres!"),
+        email: yup.string("Erro: Necessário preencher o campo email!")
+        .required("Erro: Necessário preencher o campo email!"),
+        name: yup.string("Erro: Necessário preencher o campo nome!")
+        .required("Erro: Necessário preencher o campo nome!")
+
+    });
+
+    try{
+        await schema.validate(dados);
+    }catch(err){
+        console.log(err)
+        return res.status(400).json({
+            erro: true,
+            mensagem: err.errors
+        })
+    }
+
+    /*if(!(await schema.isValid(dados))){
+        return res.status(400).json({
+            erro: true,
+            mensagem: "Erro: Necessário preencher todos os campos."
+        })
+    }*/
+
+    const user = await Usuario.findOne({
+        where: {
+            email: req.body.email,
+        }
+    })
+    
+    if(user){
+        return res.status(400).json({
+            erro: true,
+            mensagem: "Erro: Este email já está sendo usado."
+        })
+    }
+     
     dados.password = await bcrypt.hash(dados.password, 8)
 
     await Usuario.create(dados)
@@ -98,6 +146,43 @@ app.post("/user", eAdmin, async (req, res) => {
 
 app.put("/user/", eAdmin, async (req, res) => {
     const { id } = req.body
+
+    const schema = yup.object().shape({
+        
+        password: yup.string("Erro: Necessário preencher o campo senha!")
+        .required("Erro: Necessário preencher o campo senha!")
+        .min(6, "Erro: A senha deve ter no mínimo 6 caracteres!"),
+        email: yup.string("Erro: Necessário preencher o campo email!")
+        .required("Erro: Necessário preencher o campo email!"),
+        name: yup.string("Erro: Necessário preencher o campo nome!")
+        .required("Erro: Necessário preencher o campo nome!")
+
+    });
+
+    try{
+        await schema.validate(req.body);
+    }catch(err){
+        return res.status(400).json({
+            erro: true,
+            mensagem: err.errors
+        })
+    }
+
+    const user = await Usuario.findOne({
+        where: {
+            email: req.body.email,
+            id: {
+                [Op.ne]: id
+            }
+        }
+    })
+    if(user){
+        return res.status(400).json({
+            erro: true,
+            mensagem: "Erro: Este email já está sendo usado."
+        })
+    }
+
     await Usuario.update(req.body, {where: {id: id}})
     .then(() => {
         return res.json({
