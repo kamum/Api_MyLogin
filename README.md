@@ -83,3 +83,7 @@ Permitir acesso a API
 
 Validar campo de registro de usuário
 ### npm install --save yup
+
+Módulo para enviar email
+
+### npm install --save nodemailer

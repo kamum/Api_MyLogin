@@ -1,6 +1,7 @@
 const express = require("express")
 const cors = require('cors')
 const yup = require('yup');
+const nodemailer = require('nodemailer')
 const { Op } = require('sequelize')
 
 const bcrypt = require('bcryptjs')
@@ -476,6 +477,68 @@ app.put("/edit-profile-password", eAdmin, async (req, res) => {
     return res.json({
         erro: false,
     })
+})
+
+app.post('/recover-password', async (req, res) => {
+    
+    var transport = nodemailer.createTransport({
+        host: process.env.EMAIL_HOST,
+        port: process.env.EMAIL_PORT,
+        auth: {
+          user: process.env.EMAIL_USER,
+          pass: process.env.EMAIL_PASS
+        }
+      });
+
+      var message = {
+        from: "jonjon@gmai.com",
+        to: "jonathanmundi@gmail.com",
+        subject: "Recuperar senha",
+        text: "Prezado(a), Jonh\n\nVocê solicitou alteração de senha.\n\nPara continuar o processo de recuperação de sua senha, clique no link abaixo ou cole o endereço no seu navegador:\n\n Se você não solicitou essa alteração, nenhuma ação é necessária. Sua senha permanecerá a mesma até que você ative este código.\n\n",
+        html: "Prezado(a), Jonh<br/><br/>Você solicitou alteração de senha.<br/><br/>Para continuar o processo de recuperação de sua senha, clique no link abaixo ou cole o endereço no seu navegador:<br/><br/> Se você não solicitou essa alteração, nenhuma ação é necessária. Sua senha permanecerá a mesma até que você ative este código.<br/><br/>"
+      };
+
+      await transport.sendMail(message, function(err){
+          if(err) return res.status(400).json({
+              erro: true,
+              mensagem: "Erro: O email não pode ser enviado."
+          });
+
+          return res.json({
+              erro: false,
+              mensagem: "Email enviado com sucesso!"
+          });
+      })
+    
+    // const usuario = await Usuario.findOne({
+    //         attributes: ['id', 'name', 'email', 'password'],
+    //         where: {
+    //             email: req.body.email
+    //         }}
+    //     )
+    // if(usuario === null) {
+    //     return res.status(400).json({
+    //         erro: true,
+    //         mensagem: "Usuário ou senha incorreta."
+    //     })
+    // }
+
+    // if(!(await bcrypt.compare(req.body.password, usuario.password))) {
+    //     return res.status(400).json({
+    //         erro: true,
+    //         mensagem: "Usuário ou senha incorreta."
+    //     })
+    // }
+    // const token = jwt.sign({id: usuario.id}, process.env.SECRET,{
+    //     //expiresIn: 600 // 10min
+    //     expiresIn: '7d' // 7 dias
+    // })
+    
+    // return res.json({
+    //     erro: false,
+    //     mensagem: "Login realizado com sucesso!.",
+    //     token
+    // })
 })
 
 app.listen(8080, () => {
