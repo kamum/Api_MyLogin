@@ -149,9 +149,9 @@ app.put("/user/", eAdmin, async (req, res) => {
 
     const schema = yup.object().shape({
         
-        password: yup.string("Erro: Necessário preencher o campo senha!")
+       /* password: yup.string("Erro: Necessário preencher o campo senha!")
         .required("Erro: Necessário preencher o campo senha!")
-        .min(6, "Erro: A senha deve ter no mínimo 6 caracteres!"),
+        .min(6, "Erro: A senha deve ter no mínimo 6 caracteres!"),*/
         email: yup.string("Erro: Necessário preencher o campo email!")
         .required("Erro: Necessário preencher o campo email!"),
         name: yup.string("Erro: Necessário preencher o campo nome!")
@@ -183,7 +183,7 @@ app.put("/user/", eAdmin, async (req, res) => {
         })
     }
 
-    await Usuario.update(req.body, {where: {id: id}})
+    await Usuario.update(req.body, {where: {id}})
     .then(() => {
         return res.json({
             erro: false,
@@ -203,9 +203,26 @@ app.put("/user/", eAdmin, async (req, res) => {
 app.put("/user-senha", eAdmin, async (req, res) => {
     const { id, password } = req.body
 
+    const schema = yup.object().shape({
+        
+        password: yup.string("Erro: Necessário preencher o campo senha!")
+         .required("Erro: Necessário preencher o campo senha!")
+         .min(6, "Erro: A senha deve ter no mínimo 6 caracteres!"),
+ 
+     });
+ 
+     try{
+         await schema.validate(req.body);
+     }catch(err){
+         return res.status(400).json({
+             erro: true,
+             mensagem: err.errors
+         })
+     }
+
     let senhaCrypt = await bcrypt.hash(password, 8)
 
-    await Usuario.update({password: senhaCrypt}, {where: {id: id}})
+    await Usuario.update({password: senhaCrypt}, {where: {id}})
     .then(() => {
         return res.json({
             erro: false,
@@ -299,6 +316,167 @@ app.get("/val-token", eAdmin, async (req, res) => {
    
 })
 
+app.post("/add-user-login", async (req, res) => {
+    var dados = req.body;
+
+    const schema = yup.object().shape({
+        password: yup.string("Erro: Necessário preencher o campo senha!")
+            .required("Erro: Necessário preencher o campo senha!")
+            .min(6, "Erro: A senha deve ter no mínimo 6 caracteres!"),
+        email: yup.string("Erro: Necessário preencher o campo e-mail!")
+            .email("Erro: Necessário preencher o campo e-mail!")
+            .required("Erro: Necessário preencher o campo e-mail!"),
+        name: yup.string("Erro: Necessário preencher o campo nome!")
+            .required("Erro: Necessário preencher o campo nome!")
+    });
+
+    try {
+        await schema.validate(dados);
+    } catch (err) {
+        return res.status(400).json({
+            erro: true,
+            mensagem: err.errors
+        });
+    }
+
+    const user = await Usuario.findOne({
+        where: {
+            email: req.body.email
+        }
+    });
+
+    if(user){
+        return res.status(400).json({
+            erro: true,
+            mensagem: "Erro: Este e-mail já está cadastrado!"
+        });
+    }
+
+    dados.password = await bcrypt.hash(dados.password, 8);
+
+    await Usuario.create(dados)
+        .then(() => {
+            return res.json({
+                erro: false,
+                mensagem: "Usuário cadastrado com sucesso!"
+            });
+        }).catch(() => {
+            return res.status(400).json({
+                erro: true,
+                mensagem: "Erro: Usuário não cadastrado com sucesso!"
+            });
+        });
+});
+
+app.get("/view-profile", eAdmin, async (req, res) => {
+    const id = req.usuarioId;
+
+    await Usuario.findByPk(id)
+        .then((user) => {
+            return res.json({
+                erro: false,
+                user
+            });
+        }).catch(() => {
+            return res.status(400).json({
+                erro: true,
+                mensagem: "Erro: Nenhum usuário encontrado!"
+            });
+        });
+});
+
+app.put("/edit-profile/", eAdmin, async (req, res) => {
+    const id = req.usuarioId;
+
+    const schema = yup.object().shape({
+        
+        email: yup.string("Erro: Necessário preencher o campo email!")
+        .required("Erro: Necessário preencher o campo email!"),
+        name: yup.string("Erro: Necessário preencher o campo nome!")
+        .required("Erro: Necessário preencher o campo nome!")
+
+    });
+
+    try{
+        await schema.validate(req.body);
+    }catch(err){
+        return res.status(400).json({
+            erro: true,
+            mensagem: err.errors
+        })
+    }
+
+    const user = await Usuario.findOne({
+        where: {
+            email: req.body.email,
+            id: {
+                [Op.ne]: id
+            }
+        }
+    })
+    if(user){
+        return res.status(400).json({
+            erro: true,
+            mensagem: "Erro: Este email já está sendo usado."
+        })
+    }
+
+    await Usuario.update(req.body, {where: {id}})
+    .then(() => {
+        return res.json({
+            erro: false,
+            mensagem: "Perfil editado com sucesso!"
+        })
+    }).catch(() => {
+        return res.status(400).json({
+            erro: true,
+            mensagem: "O Perfil não pode ser editado."
+        })
+    })
+    return res.json({
+        erro: false,
+    })
+})
+
+app.put("/edit-profile-password", eAdmin, async (req, res) => {
+    const id = req.usuarioId;
+    const { password } = req.body;
+
+    const schema = yup.object().shape({
+        
+        password: yup.string("Erro: Necessário preencher o campo senha!")
+         .required("Erro: Necessário preencher o campo senha!")
+         .min(6, "Erro: A senha deve ter no mínimo 6 caracteres!"),
+ 
+     });
+ 
+     try{
+         await schema.validate(req.body);
+     }catch(err){
+         return res.status(400).json({
+             erro: true,
+             mensagem: err.errors
+         })
+     }
+
+    let senhaCrypt = await bcrypt.hash(password, 8)
+
+    await Usuario.update({password: senhaCrypt}, {where: {id}})
+    .then(() => {
+        return res.json({
+            erro: false,
+            mensagem: "senha alterada com sucesso!"
+        })
+    }).catch(() => {
+        return res.status(400).json({
+            erro: true,
+            mensagem: "A senha não pode ser alterada."
+        })
+    })
+    return res.json({
+        erro: false,
+    })
+})
 
 app.listen(8080, () => {
     console.log("Servidor inciado na porta 8080: http://localhost:8080")
