@@ -1,4 +1,6 @@
-SEQUENCIA PARA CRIAR PROJETO
+
+ teste
+ SEQUENCIA PARA CRIAR PROJETO
 Criar o arquivo package.
 
 ### npm init
