@@ -535,7 +535,70 @@ app.post('/recover-password', async (req, res) => {
             });
         });
 
-})
+});
+
+app.get('/val-key-recover-pass/:key', async (req, res) => {
+
+    const { key } = req.params;
+
+    const usuario = await Usuario.findOne({
+        attributes: ['id'],
+        where: {
+            recover_password: key
+        }
+
+    });
+    if (usuario === null) {
+        return res.status(400).json({
+            erro: true,
+            mensagem: "Erro: Link inválido."
+        })
+    };
+
+    return res.json({
+        erro: false,
+        mensagem: "Chave válida!",
+    })
+
+});
+
+app.put('/update-password/:key', async (req, res) => {
+    const { key } = req.params;
+    const { password } = req.body
+
+    const schema = yup.object().shape({
+
+        password: yup.string("Erro: Necessário preencher o campo senha!")
+            .required("Erro: Necessário preencher o campo senha!")
+            .min(6, "Erro: A senha deve ter no mínimo 6 caracteres!"),
+
+    });
+
+    try {
+        await schema.validate(req.body);
+    } catch (err) {
+        return res.status(400).json({
+            erro: true,
+            mensagem: err.errors
+        })
+    }
+
+    let senhaCrypt = await bcrypt.hash(password, 8)
+
+    await Usuario.update({ password: senhaCrypt, recover_password: null }, { where: { recover_password: key } })
+    .then(() => {
+        return res.json({
+            erro: false,
+            mensagem: "senha alterada com sucesso!"
+        })
+        }).catch(() => {
+        return res.status(400).json({
+            erro: true,
+            mensagem: "A senha não pode ser alterada."
+        })
+    })
+
+});
 
 app.listen(8080, () => {
     console.log("Servidor inciado na porta 8080: http://localhost:8080")
