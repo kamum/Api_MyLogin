@@ -17,11 +17,14 @@ const Usuario = db.define('users', {
         allowNull: false
     },
     password: {
-        type: Sequelize.STRING,
+        type: Sequelize.STRING
     },
     recover_password:{
-        type: Sequelize.STRING,
+        type: Sequelize.STRING
     },
+    image: {
+        type: Sequelize.STRING
+    }
 })
 
 //Criar a tabela

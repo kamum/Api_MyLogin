@@ -85,5 +85,7 @@ Validar campo de registro de usuário
 ### npm install --save yup
 
 Módulo para enviar email
-
 ### npm install --save nodemailer
+
+Multer é um middleware node.js para manipulação multipart/form-data, que é usado principalmente para fazer upload de arquivos.
+### npm install --save multer

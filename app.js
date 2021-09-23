@@ -7,13 +7,18 @@ const { Op } = require('sequelize')
 const bcrypt = require('bcryptjs')
 const jwt = require('jsonwebtoken')
 require('dotenv').config()
+const fs = require('fs')
+const path = require('path')
 
 const { eAdmin } = require('./middlewares/auth')
 const Usuario = require('./models/Usuario')
+const upload = require('./middlewares/uploadImgProfile')
 
 const app = express()
 
 app.use(express.json())
+
+app.use('/files', express.static(path.resolve(__dirname, "public", "upload")));
 
 app.use((req, res, next) => {
     res.header('Access-Control-Allow-Origin', '*')
@@ -71,9 +76,15 @@ app.get("/user/:id", eAdmin, async (req, res) => {
     //await Usuario.findAll({where: {id: id}})
     await Usuario.findByPk(id)
         .then((user) => {
+            if(user.image){
+                var addressImage = process.env.URL_IMG + "/files/users/" + user.image;
+            }else{
+                var addressImage = process.env.URL_IMG + "/files/users/perfil-sem-foto-220615.png";
+            }
             return res.json({
                 erro: false,
-                user: user
+                user: user,
+                addressImage
             })
         }).catch(() => {
             return res.status(400).json({
@@ -233,12 +244,9 @@ app.put("/user-senha", eAdmin, async (req, res) => {
             return res.status(400).json({
                 erro: true,
                 mensagem: "A senha não pode ser alterada."
-            })
-        })
-    return res.json({
-        erro: false,
-    })
-})
+            });
+        });
+});
 
 app.delete("/user/:id", eAdmin, async (req, res) => {
     const { id } = req.params
@@ -375,10 +383,18 @@ app.get("/view-profile", eAdmin, async (req, res) => {
 
     await Usuario.findByPk(id)
         .then((user) => {
+
+            if(user.image){
+                var addressImage = process.env.URL_IMG + "/files/users/" + user.image;
+            }else{
+                var addressImage = process.env.URL_IMG + "/files/users/perfil-sem-foto-220615.png";
+            }
+            
             return res.json({
                 erro: false,
-                user
-            });
+                user: user,
+                addressImage
+            })
         }).catch(() => {
             return res.status(400).json({
                 erro: true,
@@ -433,12 +449,9 @@ app.put("/edit-profile/", eAdmin, async (req, res) => {
             return res.status(400).json({
                 erro: true,
                 mensagem: "O Perfil não pode ser editado."
-            })
-        })
-    return res.json({
-        erro: false,
-    })
-})
+            });
+        });
+});
 
 app.put("/edit-profile-password", eAdmin, async (req, res) => {
     const id = req.usuarioId;
@@ -600,6 +613,45 @@ app.put('/update-password/:key', async (req, res) => {
 
 });
 
+app.put('/edit-profile-image', eAdmin, upload.single('image'), async (req,res) =>{
+    
+    if(req.file){
+
+        await Usuario.findByPk(req.usuarioId)
+        .then(usuario => {
+            const oldImg = "./public/upload/users/" + usuario.dataValues.image;
+
+            fs.access(oldImg, (err) => {
+                if(!err){
+                    fs.unlink(oldImg, () => {})
+                }
+            });
+        }).catch(() => {
+            return res.status(400).json({
+                erro: true,
+                mensagem: "Erro: Perfil não encontrado."
+            });
+        });
+        await Usuario.update({image: req.file.filename}, { where: { id: req.usuarioId } })
+        .then(() => {
+            return res.json({
+                erro: false,
+                mensagem: "Imagem editada com sucesso!"
+            });
+        }).catch(() => {
+            return res.status(400).json({
+                erro: true,
+                mensagem: "A imagem do usuário não foi editada."
+            });
+        })
+    }else{
+        return res.status(400).json({
+            erro: true,
+            mensagem: "Erro: Insira uma imagem válida JPG ou PNG!"
+        });
+    }    
+});
+
 app.listen(8080, () => {
     console.log("Servidor inciado na porta 8080: http://localhost:8080")
-})
+});
