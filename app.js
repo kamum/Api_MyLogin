@@ -279,7 +279,7 @@ app.post('/login', async (req, res) => {
     // }
 
     const usuario = await Usuario.findOne({
-        attributes: ['id', 'name', 'email', 'password'],
+        attributes: ['id', 'name', 'email', 'password', 'image'],
         where: {
             email: req.body.email
         }
@@ -301,13 +301,22 @@ app.post('/login', async (req, res) => {
     const token = jwt.sign({ id: usuario.id }, process.env.SECRET, {
         //expiresIn: 600 // 10min
         expiresIn: '7d' // 7 dias
-    })
+    });
+
+    const {name, image} = usuario;
+
+    if(image){
+        var addressImage = process.env.URL_IMG + "/files/users/" + image;
+    }else{
+        var addressImage = process.env.URL_IMG + "/files/users/perfil-sem-foto-220615.png";
+    }
 
     return res.json({
         erro: false,
         mensagem: "Login realizado com sucesso!.",
+        usuario:  {name, image: addressImage },
         token
-    })
+    });
 })
 
 app.get("/val-token", eAdmin, async (req, res) => {
@@ -632,11 +641,13 @@ app.put('/edit-profile-image', eAdmin, upload.single('image'), async (req,res) =
                 mensagem: "Erro: Perfil não encontrado."
             });
         });
+
         await Usuario.update({image: req.file.filename}, { where: { id: req.usuarioId } })
         .then(() => {
             return res.json({
                 erro: false,
-                mensagem: "Imagem editada com sucesso!"
+                mensagem: "Imagem editada com sucesso!",
+                image: process.env.URL_IMG + "/files/users/" + req.file.filename
             });
         }).catch(() => {
             return res.status(400).json({
@@ -650,6 +661,49 @@ app.put('/edit-profile-image', eAdmin, upload.single('image'), async (req,res) =
             mensagem: "Erro: Insira uma imagem válida JPG ou PNG!"
         });
     }    
+});
+
+app.put('/edit-user-image/:id', eAdmin, upload.single('image'), async (req, res) => {
+    if(req.file){
+        const { id } = req.params;
+
+        await Usuario.findByPk(id)
+        .then(user => {
+            const imgOld = "./public/upload/users/" + user.dataValues.image;
+
+            fs.access(imgOld, (err) => {
+                if(!err){
+                    fs.unlink(imgOld, () => {});
+                }
+            });
+
+        }).catch(() => {
+            return res.status(400).json({
+                erro: true,
+                mensagem: "Erro: Usuário não encontrado!"
+            });
+        });
+
+        await Usuario.update({image: req.file.filename}, { where: { id } })
+        .then(() => {
+            return res.json({
+                erro: false,
+                mensagem: "Imagem do usuário editado com sucesso!",
+            });
+
+        }).catch(() => {
+            return res.status(400).json({
+                erro: true,
+                mensagem: "Erro: Imagem do usuário não editado com sucesso!"
+            });
+        });
+    }else{
+        return res.status(400).json({
+            erro: false,
+            mensagem: "Erro: Selecione uma imagem válida JPEG ou PNG!"
+        });
+    }
+    
 });
 
 app.listen(8080, () => {
